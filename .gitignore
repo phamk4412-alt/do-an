@@ -1,0 +1,36 @@
+# Build directories
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio files
+.vs/
+*.vcxproj.user
+*.dbmdl
+
+# Rider files
+.idea/
+*.sln.iml
+
+# NuGet
+*.nupkg
+packages/
+
+# Build outputs
+*.dll
+*.exe
+*.app
+*.appx
+*.msi
+*.cache
+*.log
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
