@@ -18,7 +18,7 @@ while (true)
     Console.WriteLine("0. Thoát");
     Console.Write("Lựa chọn của bạn: ");
 
-    var choice = Console.ReadLine();
+    var choice = ReadLineOrExit();
     switch (choice)
     {
         case "1": AddIncident(service); break;
@@ -27,7 +27,7 @@ while (true)
         case "4": DeleteIncident(service); break;
         case "5": ShowAnalysis(service); break;
         case "0": service.SaveData(); return;
-        default: Console.WriteLine("Lựa chọn không hợp lệ. Nhấn Enter để thử lại..."); Console.ReadLine(); break;
+        default: Console.WriteLine("Lựa chọn không hợp lệ. Nhấn Enter để thử lại..."); ReadLineOrExit(); break;
     }
 }
 
@@ -38,17 +38,17 @@ static void AddIncident(CrimeManagementService service)
 
     var date = ReadDate("Ngày xảy ra (yyyy-MM-dd): ");
     Console.Write("Quận/huyện: ");
-    var district = Console.ReadLine()?.Trim() ?? string.Empty;
+    var district = ReadLineOrExit().Trim();
     Console.Write("Phường/xã: ");
-    var ward = Console.ReadLine()?.Trim() ?? string.Empty;
+    var ward = ReadLineOrExit().Trim();
     Console.Write("Loại tội phạm: ");
-    var type = Console.ReadLine()?.Trim() ?? string.Empty;
+    var type = ReadLineOrExit().Trim();
     Console.Write("Mức độ nghiêm trọng: ");
-    var severity = Console.ReadLine()?.Trim() ?? string.Empty;
+    var severity = ReadLineOrExit().Trim();
     Console.Write("Trạng thái: ");
-    var status = Console.ReadLine()?.Trim() ?? string.Empty;
+    var status = ReadLineOrExit().Trim();
     Console.Write("Mô tả: ");
-    var description = Console.ReadLine()?.Trim() ?? string.Empty;
+    var description = ReadLineOrExit().Trim();
 
     var incident = new CrimeIncident
     (
@@ -67,7 +67,7 @@ static void AddIncident(CrimeManagementService service)
 
     Console.WriteLine("Vụ án đã được thêm.");
     Console.WriteLine("Nhấn Enter để quay lại menu...");
-    Console.ReadLine();
+    ReadLineOrExit();
 }
 
 static void ShowAllIncidents(CrimeManagementService service)
@@ -89,7 +89,7 @@ static void ShowAllIncidents(CrimeManagementService service)
     }
 
     Console.WriteLine("Nhấn Enter để quay lại menu...");
-    Console.ReadLine();
+    ReadLineOrExit();
 }
 
 static void SearchIncidents(CrimeManagementService service)
@@ -102,19 +102,19 @@ static void SearchIncidents(CrimeManagementService service)
     Console.WriteLine("0. Quay lại");
     Console.Write("Lựa chọn: ");
 
-    var choice = Console.ReadLine();
+    var choice = ReadLineOrExit();
     IEnumerable<CrimeIncident> results = Array.Empty<CrimeIncident>();
 
     switch (choice)
     {
         case "1":
             Console.Write("Quận/huyện: ");
-            var district = Console.ReadLine()?.Trim() ?? string.Empty;
+            var district = ReadLineOrExit().Trim();
             results = service.SearchByDistrict(district);
             break;
         case "2":
             Console.Write("Loại tội phạm: ");
-            var type = Console.ReadLine()?.Trim() ?? string.Empty;
+            var type = ReadLineOrExit().Trim();
             results = service.SearchByType(type);
             break;
         case "3":
@@ -134,7 +134,7 @@ static void SearchIncidents(CrimeManagementService service)
     }
 
     Console.WriteLine("Nhấn Enter để quay lại menu...");
-    Console.ReadLine();
+    ReadLineOrExit();
 }
 
 static void DeleteIncident(CrimeManagementService service)
@@ -142,7 +142,7 @@ static void DeleteIncident(CrimeManagementService service)
     Console.Clear();
     Console.WriteLine("--- Xóa vụ án ---");
     Console.Write("Nhập ID vụ án: ");
-    var idText = Console.ReadLine();
+    var idText = ReadLineOrExit();
 
     if (Guid.TryParse(idText, out var id) && service.DeleteIncident(id))
     {
@@ -155,7 +155,7 @@ static void DeleteIncident(CrimeManagementService service)
     }
 
     Console.WriteLine("Nhấn Enter để quay lại menu...");
-    Console.ReadLine();
+    ReadLineOrExit();
 }
 
 static void ShowAnalysis(CrimeManagementService service)
@@ -187,7 +187,7 @@ static void ShowAnalysis(CrimeManagementService service)
     Console.WriteLine($"Quận/huyện có nhiều vụ nhất: {summary.MostActiveDistrict}");
 
     Console.WriteLine("Nhấn Enter để quay lại menu...");
-    Console.ReadLine();
+    ReadLineOrExit();
 }
 
 static DateTime ReadDate(string prompt)
@@ -195,12 +195,23 @@ static DateTime ReadDate(string prompt)
     while (true)
     {
         Console.Write(prompt);
-        var input = Console.ReadLine();
+        var input = ReadLineOrExit();
         if (DateTime.TryParseExact(input, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
         {
             return date;
         }
         Console.WriteLine("Định dạng không hợp lệ. Vui lòng nhập lại theo mẫu yyyy-MM-dd.");
     }
+}
+
+static string ReadLineOrExit()
+{
+    var input = Console.ReadLine();
+    if (input is null)
+    {
+        Console.WriteLine("Không nhận được dữ liệu đầu vào. Ứng dụng sẽ thoát.");
+        Environment.Exit(0);
+    }
+    return input;
 }
 
