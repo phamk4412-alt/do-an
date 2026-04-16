@@ -1,33 +1,126 @@
 using System.Globalization;
 using HoChiMinhCrimeSystem;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 
 const string DataFile = "crime_data.json";
 
 var service = new CrimeManagementService(DataFile);
 service.LoadData();
 
-while (true)
+if (args.Contains("--console", StringComparer.OrdinalIgnoreCase))
 {
-    Console.Clear();
-    Console.WriteLine("=== HỆ THỐNG QUẢN LÝ VÀ PHÂN TÍCH DỮ LIỆU TỘI PHẠM - TP. HỒ CHÍ MINH ===");
-    Console.WriteLine("1. Thêm vụ án");
-    Console.WriteLine("2. Hiển thị danh sách vụ án");
-    Console.WriteLine("3. Tìm kiếm vụ án");
-    Console.WriteLine("4. Xóa vụ án");
-    Console.WriteLine("5. Phân tích dữ liệu");
-    Console.WriteLine("0. Thoát");
-    Console.Write("Lựa chọn của bạn: ");
+    RunConsoleApp(service);
+    return;
+}
 
-    var choice = ReadLineOrExit();
-    switch (choice)
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
+app.Urls.Add($"http://0.0.0.0:{port}");
+
+app.MapGet("/", () => Results.Text(@"<!DOCTYPE html>
+<html lang='vi'>
+<head>
+    <meta charset='utf-8'>
+    <title>Hệ thống quản lý tội phạm</title>
+</head>
+<body>
+    <h1>Hệ thống quản lý và phân tích dữ liệu tội phạm</h1>
+    <p>Ứng dụng đã được chuyển sang giao diện Web.</p>
+    <ul>
+        <li><a href='/api/incidents'>Danh sách vụ án (JSON)</a></li>
+        <li><a href='/api/analysis'>Phân tích dữ liệu (JSON)</a></li>
+        <li><a href='/healthz'>Health check</a></li>
+    </ul>
+</body>
+</html>", "text/html"));
+
+app.MapGet("/api/incidents", () => Results.Ok(service.GetAllIncidents()));
+app.MapPost("/api/incidents", (IncidentInput input) =>
+{
+    var incident = new CrimeIncident(
+        Guid.NewGuid(),
+        input.Date,
+        input.District ?? string.Empty,
+        input.Ward ?? string.Empty,
+        input.Type ?? string.Empty,
+        input.Severity ?? string.Empty,
+        input.Status ?? string.Empty,
+        input.Description ?? string.Empty);
+
+    service.AddIncident(incident);
+    service.SaveData();
+    return Results.Created($"/api/incidents/{incident.Id}", incident);
+});
+app.MapGet("/api/incidents/{id:guid}", (Guid id) =>
+{
+    var incident = service.GetAllIncidents().FirstOrDefault(i => i.Id == id);
+    return incident is not null ? Results.Ok(incident) : Results.NotFound();
+});
+app.MapDelete("/api/incidents/{id:guid}", (Guid id) =>
+{
+    if (service.DeleteIncident(id))
     {
-        case "1": AddIncident(service); break;
-        case "2": ShowAllIncidents(service); break;
-        case "3": SearchIncidents(service); break;
-        case "4": DeleteIncident(service); break;
-        case "5": ShowAnalysis(service); break;
-        case "0": service.SaveData(); return;
-        default: Console.WriteLine("Lựa chọn không hợp lệ. Nhấn Enter để thử lại..."); ReadLineOrExit(); break;
+        service.SaveData();
+        return Results.Ok();
+    }
+    return Results.NotFound();
+});
+app.MapGet("/api/search", (string? district, string? type, string? from, string? to) =>
+{
+    var results = service.GetAllIncidents().AsEnumerable();
+    if (!string.IsNullOrWhiteSpace(district))
+    {
+        results = results.Where(i => i.District.Contains(district, StringComparison.OrdinalIgnoreCase));
+    }
+    if (!string.IsNullOrWhiteSpace(type))
+    {
+        results = results.Where(i => i.Type.Contains(type, StringComparison.OrdinalIgnoreCase));
+    }
+    if (!string.IsNullOrWhiteSpace(from) && DateTime.TryParse(from, out var fromDate))
+    {
+        results = results.Where(i => i.Date.Date >= fromDate.Date);
+    }
+    if (!string.IsNullOrWhiteSpace(to) && DateTime.TryParse(to, out var toDate))
+    {
+        results = results.Where(i => i.Date.Date <= toDate.Date);
+    }
+    return Results.Ok(results);
+});
+app.MapGet("/api/analysis", () => Results.Ok(service.GenerateSummary()));
+app.MapGet("/healthz", () => Results.Ok("ok"));
+
+app.Run();
+
+static void RunConsoleApp(CrimeManagementService service)
+{
+    while (true)
+    {
+        Console.Clear();
+        Console.WriteLine("=== HỆ THỐNG QUẢN LÝ VÀ PHÂN TÍCH DỮ LIỆU TỘI PHẠM - TP. HỒ CHÍ MINH ===");
+        Console.WriteLine("1. Thêm vụ án");
+        Console.WriteLine("2. Hiển thị danh sách vụ án");
+        Console.WriteLine("3. Tìm kiếm vụ án");
+        Console.WriteLine("4. Xóa vụ án");
+        Console.WriteLine("5. Phân tích dữ liệu");
+        Console.WriteLine("0. Thoát");
+        Console.Write("Lựa chọn của bạn: ");
+
+        var choice = ReadLineOrExit();
+        switch (choice)
+        {
+            case "1": AddIncident(service); break;
+            case "2": ShowAllIncidents(service); break;
+            case "3": SearchIncidents(service); break;
+            case "4": DeleteIncident(service); break;
+            case "5": ShowAnalysis(service); break;
+            case "0": service.SaveData(); return;
+            default:
+                Console.WriteLine("Lựa chọn không hợp lệ. Nhấn Enter để thử lại...");
+                ReadLineOrExit();
+                break;
+        }
     }
 }
 
@@ -50,8 +143,7 @@ static void AddIncident(CrimeManagementService service)
     Console.Write("Mô tả: ");
     var description = ReadLineOrExit().Trim();
 
-    var incident = new CrimeIncident
-    (
+    var incident = new CrimeIncident(
         Guid.NewGuid(),
         date,
         district,
@@ -59,8 +151,7 @@ static void AddIncident(CrimeManagementService service)
         type,
         severity,
         status,
-        description
-    );
+        description);
 
     service.AddIncident(incident);
     service.SaveData();
@@ -214,4 +305,13 @@ static string ReadLineOrExit()
     }
     return input;
 }
+
+public sealed record IncidentInput(
+    DateTime Date,
+    string? District,
+    string? Ward,
+    string? Type,
+    string? Severity,
+    string? Status,
+    string? Description);
 
